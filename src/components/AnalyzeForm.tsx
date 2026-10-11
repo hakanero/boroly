@@ -64,20 +64,21 @@ export function AnalyzeForm({
   const update = (patch: Partial<FormValues>) => setV((cur) => ({ ...cur, ...patch }));
 
   // A random real Craigslist listing plus a random renter, fresh on every click.
-  const [example, setExample] = useState<{ loading: boolean; note: string }>({ loading: false, note: "" });
+  const [exampleLoading, setExampleLoading] = useState(false);
   async function tryExample() {
-    setExample({ loading: true, note: "" });
+    setExampleLoading(true);
     try {
       const res = await fetch("/api/example", { cache: "no-store" });
       const j = await res.json();
       if (!res.ok || !j.listing) throw new Error();
       setV({ listing: j.listing.url, ...j.person });
-      setExample({ loading: false, note: `Live on Craigslist: “${j.listing.title}” · $${j.listing.price.toLocaleString("en-US")}` });
     } catch {
       setV(EXAMPLE);
-      setExample({ loading: false, note: "Couldn’t reach Craigslist, so here’s a sample listing instead." });
+    } finally {
+      setExampleLoading(false);
     }
   }
+
   const togglePriority = (p: string) =>
     update({ priorities: v.priorities.includes(p) ? v.priorities.filter((x) => x !== p) : [...v.priorities, p] });
 
@@ -107,10 +108,10 @@ export function AnalyzeForm({
           <button
             type="button"
             onClick={tryExample}
-            disabled={example.loading}
+            disabled={exampleLoading}
             className="text-sm text-muted underline-offset-4 hover:text-ink hover:underline disabled:no-underline disabled:opacity-60"
           >
-            {example.loading ? "Finding a listing…" : "Try a random example"}
+            {exampleLoading ? "Finding a listing…" : "Try a random example"}
           </button>
         </div>
         <textarea
@@ -118,13 +119,9 @@ export function AnalyzeForm({
           rows={isUrl ? 2 : 4}
           value={v.listing}
           onChange={(e) => update({ listing: e.target.value })}
-          placeholder="Paste a link, or the listing text"
+          placeholder="Paste a link (StreetEasy, Craigslist, Zillow…) or the listing text"
           className={`${input} resize-y`}
         />
-        <p className="mt-2 text-xs text-muted">
-          {example.note ||
-            "Works with StreetEasy, Craigslist, Zillow and most listing pages. For Facebook or Reddit posts, paste the text."}
-        </p>
       </div>
 
       <div>

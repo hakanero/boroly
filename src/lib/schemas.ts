@@ -166,11 +166,14 @@ export type StreamEvent =
 
 export type Source = { title: string; url: string; kind: string };
 
+/** The "about you" a place was checked with; each saved place keeps its own. */
+export type Profile = { about: string; budget: string; commuteTo: string; priorities: string[] };
+
 /** Everything we keep for a checked listing; saved in the browser. */
 export type Analysis = {
   id: string;
   savedAt: number;
-  input: { listing: string };
+  input: { listing: string; profile?: Profile };
   listing: Listing;
   sourceUrl?: string;
   context: Context;

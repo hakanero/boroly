@@ -128,10 +128,12 @@ export function ReportView({ analysis }: { analysis: Analysis }) {
         </div>
       </Card>
 
+      {analysis.input.profile && <ProfileCard profile={analysis.input.profile} />}
+
       {sources.length > 0 && (
         <details className="rounded-2xl border border-line bg-card px-5 py-4 sm:px-6">
           <summary className="cursor-pointer text-sm text-muted">
-            {sources.length} live sources, fetched with Nimble
+            {sources.length} sources
           </summary>
           <ul className="mt-3 space-y-1.5 text-sm">
             {dedupe(sources).map((s) => (
@@ -146,6 +148,27 @@ export function ReportView({ analysis }: { analysis: Analysis }) {
         </details>
       )}
     </div>
+  );
+}
+
+function ProfileCard({ profile }: { profile: NonNullable<Analysis["input"]["profile"]> }) {
+  const facts = [
+    profile.budget ? `Budget ${money(Number(profile.budget))}/mo` : "",
+    profile.commuteTo ? `Commute to ${profile.commuteTo}` : "",
+  ].filter(Boolean);
+  if (!profile.about && !facts.length && !profile.priorities.length) return null;
+  return (
+    <Card title="About you">
+      {profile.about && <p className="leading-relaxed">{profile.about}</p>}
+      {facts.length > 0 && <p className="mt-2 text-sm text-muted">{facts.join(" · ")}</p>}
+      {profile.priorities.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {profile.priorities.map((p) => (
+            <Chip key={p}>{p}</Chip>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 

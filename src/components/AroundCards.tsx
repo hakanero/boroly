@@ -24,11 +24,8 @@ export function NearbyCard({ context, className = "" }: { context: Context; clas
   ];
 
   return (
-    <Card title="Around the block" className={className}>
+    <Card title={location.precise ? "Around the block" : "Around the block (approximate)"} className={className}>
       <MapView pins={pins} onSelect={setFocus} className="h-56 sm:h-64" />
-      {!location.precise && (
-        <p className="mt-2 text-xs text-muted">The listing doesn’t give an exact address, so the pin and walking times are approximate.</p>
-      )}
       {places.length > 0 ? (
         <ol className="mt-4 divide-y divide-line">
           {places.map((p, i) => (
@@ -62,7 +59,6 @@ export function NearbyCard({ context, className = "" }: { context: Context; clas
       ) : (
         <p className="mt-4 text-sm text-muted">Couldn’t load nearby places right now.</p>
       )}
-      <p className="mt-3 text-xs text-muted">Walking times are estimates from map distance.</p>
     </Card>
   );
 }
@@ -80,7 +76,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export function HoodmapsCard({ vibe, className = "" }: { vibe: HoodmapsVibe; className?: string }) {
   const top = vibe.categories[0];
   return (
-    <Card title="What Hoodmaps says" className={className}>
+    <Card title="Vibes" className={className}>
       {top && (
         <p className="text-xl font-semibold tracking-tight">
           Mostly <span style={{ color: CATEGORY_COLORS[top.key] }}>{top.label.toLowerCase()}</span>
@@ -112,13 +108,6 @@ export function HoodmapsCard({ vibe, className = "" }: { vibe: HoodmapsVibe; cla
           </ul>
         </>
       )}
-      <p className="mt-4 text-xs text-muted">
-        Crowd-drawn on{" "}
-        <a href="https://hoodmaps.com/new-york-city-neighborhood-map" target="_blank" rel="noreferrer" className="underline underline-offset-2">
-          Hoodmaps
-        </a>
-        . Take it with a grain of salt.
-      </p>
     </Card>
   );
 }

@@ -46,7 +46,7 @@ export function useHeroFade(active: boolean) {
 
 const FEATURES = [
   { title: "Real rents nearby", text: "Priced against live StreetEasy and Craigslist listings, not internet averages." },
-  { title: "What locals say", text: "A research agent reads Reddit and neighborhood forums so you don’t have to." },
+  { title: "What locals say", text: "Real residents on Reddit and neighborhood forums, quoted with links." },
   { title: "Around the block", text: "Walking times to your park, gym, groceries and train." },
 ];
 

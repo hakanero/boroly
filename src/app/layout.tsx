@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Boroly: know the block before you sign",
+  title: "Boroly: Is this place right for you",
   description:
     "Paste any NYC sublet or rental listing. Boroly reads the live web to tell you what living there would be like, whether the price is fair, and what fits you better.",
 };

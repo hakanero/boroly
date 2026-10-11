@@ -29,24 +29,84 @@ function FitBadge({ score }: { score: number }) {
   );
 }
 
-export function PlaceCard({ a, onOpen, active }: { a: Analysis; onOpen: () => void; active?: boolean }) {
+/** How the rent compares to the nearby median, e.g. -0.22 for 22% below. */
+export function vsMedian(a: Analysis) {
+  const m = a.context.market;
+  return m && a.listing.monthlyRent > 0 ? a.listing.monthlyRent / m.median - 1 : null;
+}
+
+export function walkTo(a: Analysis, label: string) {
+  return a.context.nearby.find((p) => p.label.toLowerCase() === label.toLowerCase())?.walkMin;
+}
+
+/** The two most telling walks for a card: the subway plus the first place this person goes regularly. */
+function keyWalks(a: Analysis) {
+  const subway = a.context.nearby.find((p) => p.label === "Subway");
+  const anchor = a.context.nearby.find((p) => p.role === "anchor" && p.label !== "Subway");
+  return [anchor, subway].filter((p) => !!p).map((p) => `${p!.label} ${p!.walkMin} min`);
+}
+
+export function PlaceCard({
+  a,
+  onOpen,
+  active,
+  comparing,
+  onToggleCompare,
+}: {
+  a: Analysis;
+  onOpen: () => void;
+  active?: boolean;
+  comparing?: boolean;
+  onToggleCompare?: () => void;
+}) {
   const p = PRICE[a.context.market?.verdict ?? "unknown"] ?? PRICE.unknown;
+  const diff = vsMedian(a);
+  const facts = [
+    diff === null ? "" : `${Math.abs(Math.round(diff * 100))}% ${diff < 0 ? "below" : "above"} median`,
+    ...keyWalks(a),
+  ].filter(Boolean);
+
   return (
-    <button
-      onClick={onOpen}
-      className={`rise w-full rounded-2xl border bg-card p-4 text-left transition-colors hover:border-muted ${active ? "border-ink" : "border-line"}`}
+    <div
+      className={`rise flex rounded-2xl border bg-card transition-colors hover:border-muted ${
+        active || comparing ? "border-ink" : "border-line"
+      }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-muted">{where(a)}</p>
-        <FitBadge score={a.report.fit.score} />
-      </div>
-      <p className="mt-1 font-semibold leading-snug">{a.listing.title}</p>
-      <p className="mt-2 text-sm">
-        <span className="font-mono font-medium">{money(a.listing.monthlyRent)}</span>
-        <span className="text-muted">/mo</span> · <span className={p.tone}>{p.text}</span>
-      </p>
-      <p className="mt-2 line-clamp-2 text-sm text-muted">{a.report.fit.headline}</p>
-    </button>
+      <button onClick={onOpen} className="min-w-0 flex-1 p-4 text-left">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm text-muted">{where(a)}</p>
+          <FitBadge score={a.report.fit.score} />
+        </div>
+        <p className="mt-1 font-semibold leading-snug">{a.listing.title}</p>
+        <p className="mt-2 text-sm">
+          <span className="font-mono font-medium">{money(a.listing.monthlyRent)}</span>
+          <span className="text-muted">/mo</span> · <span className={p.tone}>{p.text}</span>
+        </p>
+        {facts.length > 0 && <p className="mt-1 text-xs text-muted">{facts.join(" · ")}</p>}
+        <p className="mt-2 line-clamp-2 text-sm text-muted">{a.report.fit.headline}</p>
+      </button>
+      {onToggleCompare && (
+        <button
+          onClick={onToggleCompare}
+          aria-pressed={comparing}
+          aria-label={comparing ? "Remove from comparison" : "Add to comparison"}
+          title="Compare"
+          className="flex shrink-0 items-center border-l border-line px-3.5 text-muted hover:text-ink"
+        >
+          <span
+            className={`flex h-[18px] w-[18px] items-center justify-center rounded border ${
+              comparing ? "border-ink bg-ink text-bg" : "border-muted/60"
+            }`}
+          >
+            {comparing && (
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M2.5 6.5l2.5 2.5 4.5-5.5" />
+              </svg>
+            )}
+          </span>
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -83,10 +143,44 @@ export function PlaceSwitcher({
   );
 }
 
+type Sort = "newest" | "fit" | "deal" | "rent";
+const SORTS: { id: Sort; label: string }[] = [
+  { id: "newest", label: "Newest" },
+  { id: "fit", label: "Best fit" },
+  { id: "deal", label: "Best deal" },
+  { id: "rent", label: "Lowest rent" },
+];
+
+function sortPlaces(places: Analysis[], sort: Sort) {
+  const last = Number.POSITIVE_INFINITY;
+  const key: Record<Sort, (a: Analysis) => number> = {
+    newest: (a) => -a.savedAt,
+    fit: (a) => -a.report.fit.score,
+    deal: (a) => vsMedian(a) ?? last,
+    rent: (a) => (a.listing.monthlyRent > 0 ? a.listing.monthlyRent : last),
+  };
+  return [...places].sort((a, b) => key[sort](a) - key[sort](b));
+}
+
+export const MAX_COMPARE = 3;
+
 /** My places: every saved place in a list, with the ones we could locate pinned on a map by rent. */
-export function PlacesMap({ places, onOpen }: { places: Analysis[]; onOpen: (id: string) => void }) {
+export function PlacesView({
+  places,
+  onOpen,
+  onCompare,
+}: {
+  places: Analysis[];
+  onOpen: (id: string) => void;
+  onCompare: (ids: string[]) => void;
+}) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [sort, setSort] = useState<Sort>("newest");
+  const [compare, setCompare] = useState<string[]>([]);
   const mapped = places.filter((a) => a.context.location);
+
+  const toggleCompare = (id: string) =>
+    setCompare((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length < MAX_COMPARE ? [...c, id] : c));
 
   const pins: Pin[] = mapped.map((a) => ({
     id: a.id,
@@ -95,21 +189,75 @@ export function PlacesMap({ places, onOpen }: { places: Analysis[]; onOpen: (id:
     label: a.listing.monthlyRent > 0 ? `$${(a.listing.monthlyRent / 1000).toFixed(1)}k` : "?",
     title: `${a.listing.title} (${money(a.listing.monthlyRent)})`,
     variant: "listing",
-    active: a.id === selected,
+    active: a.id === selected || compare.includes(a.id),
   }));
 
   // A selected pin's card jumps to the top of the list.
-  const list = selected ? [...places].sort((a) => (a.id === selected ? -1 : 0)) : places;
+  const sorted = sortPlaces(places, sort);
+  const list = selected ? [...sorted].sort((a) => (a.id === selected ? -1 : 0)) : sorted;
   const cards = list.map((a) => (
-    <PlaceCard key={a.id} a={a} active={a.id === selected} onOpen={() => onOpen(a.id)} />
+    <PlaceCard
+      key={a.id}
+      a={a}
+      active={a.id === selected}
+      onOpen={() => onOpen(a.id)}
+      comparing={compare.includes(a.id)}
+      onToggleCompare={places.length > 1 ? () => toggleCompare(a.id) : undefined}
+    />
   ));
 
-  if (!mapped.length) return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{cards}</div>;
-
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-      <MapView pins={pins} onSelect={setSelected} scrollZoom className="h-[50vh] min-h-80 lg:h-[70vh]" />
-      <div className="space-y-3 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">{cards}</div>
+    <div className="pb-16">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">My places</h1>
+        {places.length > 1 && (
+          <div className="flex items-center gap-1 rounded-full border border-line bg-card p-1 text-sm" role="group" aria-label="Sort places">
+            {SORTS.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setSort(s.id)}
+                aria-pressed={sort === s.id}
+                className={`rounded-full px-3 py-1 transition-colors ${sort === s.id ? "bg-ink text-bg" : "hover:bg-soft"}`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {mapped.length ? (
+        <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+          <MapView pins={pins} onSelect={setSelected} scrollZoom className="h-[50vh] min-h-80 lg:h-[70vh]" />
+          <div className="space-y-3 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">{cards}</div>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{cards}</div>
+      )}
+
+      {compare.length > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/90 backdrop-blur">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            <p className="text-sm text-muted">
+              {compare.length < 2
+                ? "Pick one more to compare"
+                : `${compare.length} selected${compare.length === MAX_COMPARE ? " (max)" : ""}`}
+            </p>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setCompare([])} className="rounded-full px-3 py-2 text-sm text-muted hover:text-ink">
+                Clear
+              </button>
+              <button
+                onClick={() => onCompare(compare)}
+                disabled={compare.length < 2}
+                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-bg disabled:opacity-40"
+              >
+                Compare {compare.length > 1 ? compare.length : ""}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

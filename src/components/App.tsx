@@ -8,7 +8,8 @@ import { AnalyzeForm, type FormValues } from "./AnalyzeForm";
 import { NearbyCard } from "./AroundCards";
 import { Hero, useHeroFade } from "./Hero";
 import { Card, Logo } from "./bits";
-import { PlacesMap, PlaceSwitcher } from "./Places";
+import { CompareView } from "./Compare";
+import { PlacesView, PlaceSwitcher } from "./Places";
 import { Progress, STEPS, type StepState } from "./Progress";
 import { ListingSummary, ReportView } from "./ReportView";
 
@@ -17,7 +18,8 @@ type View =
   | { kind: "new" }
   | { kind: "running" }
   | { kind: "place"; id: string }
-  | { kind: "places" };
+  | { kind: "places" }
+  | { kind: "compare"; ids: string[] };
 
 const EMPTY_CONTEXT: Context = { location: null, nearby: [], hoodmaps: null, market: null, brief: null };
 
@@ -28,6 +30,8 @@ function viewFromUrl(): View {
   const q = new URLSearchParams(window.location.search);
   const id = q.get("p");
   if (id) return { kind: "place", id };
+  const compare = q.get("compare");
+  if (compare) return { kind: "compare", ids: compare.split(",").filter(Boolean) };
   const v = q.get("view");
   // "map" was its own page before; it's part of My places now.
   if (v === "places" || v === "map") return { kind: "places" };
@@ -37,6 +41,7 @@ function viewFromUrl(): View {
 function urlFor(v: View) {
   if (v.kind === "place") return `?p=${v.id}`;
   if (v.kind === "places") return "?view=places";
+  if (v.kind === "compare") return `?compare=${v.ids.join(",")}`;
   return window.location.pathname;
 }
 
@@ -84,7 +89,9 @@ export function App() {
     const text = v.listing.trim();
     const isUrl = /^(https?:\/\/|www\.)\S+$/i.test(text);
     const urlInText = !isUrl ? text.match(/https?:\/\/\S+/)?.[0] : undefined;
-    const acc: Partial<Analysis> = { input: { listing: text } };
+    const acc: Partial<Analysis> = {
+      input: { listing: text, profile: { about: v.about, budget: v.budget, commuteTo: v.commuteTo, priorities: v.priorities } },
+    };
 
     try {
       const res = await fetch("/api/analyze", {
@@ -151,7 +158,7 @@ export function App() {
   }
 
   const current = view.kind === "place" ? saved.find((a) => a.id === view.id) : undefined;
-  const tab = view.kind === "places" || view.kind === "place" ? "places" : "new";
+  const tab = view.kind === "places" || view.kind === "place" || view.kind === "compare" ? "places" : "new";
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -209,7 +216,6 @@ export function App() {
               ) : (
                 <Card className="lg:col-span-2">
                   <Progress steps={steps} />
-                  <p className="mt-5 text-xs text-muted">Usually takes under a minute. It’s saved to My places when done.</p>
                 </Card>
               )}
               {live.context?.location && <NearbyCard context={live.context} className="lg:col-span-3" />}
@@ -240,17 +246,31 @@ export function App() {
         {view.kind === "places" &&
           (saved.length ? (
             <div className="pt-4">
-              <h1 className="mb-5 text-2xl font-semibold tracking-tight">My places</h1>
-              <PlacesMap places={saved} onOpen={(id) => go({ kind: "place", id })} />
+              <PlacesView
+                places={saved}
+                onOpen={(id) => go({ kind: "place", id })}
+                onCompare={(ids) => go({ kind: "compare", ids })}
+              />
             </div>
           ) : (
             <Empty onNew={() => go({ kind: "new" })} text="Places you check show up here, on a map, so you can compare them." />
           ))}
+        {view.kind === "compare" &&
+          (() => {
+            const chosen = view.ids.map((id) => saved.find((a) => a.id === id)).filter((a): a is Analysis => !!a);
+            return chosen.length >= 2 ? (
+              <div className="pt-4">
+                <button onClick={() => go({ kind: "places" })} className="mb-3 text-sm text-muted hover:text-ink">
+                  ← My places
+                </button>
+                <CompareView places={chosen} onOpen={(id) => go({ kind: "place", id })} />
+              </div>
+            ) : (
+              <Empty onNew={() => go({ kind: "places" })} text="Pick at least two saved places to compare." />
+            );
+          })()}
       </main>
 
-      <footer className="mx-auto w-full max-w-5xl px-4 py-6 text-xs text-muted sm:px-6">
-        Live web data by Nimble · Analysis by Gemini · Saved in this browser only · Always tour before you pay.
-      </footer>
     </div>
   );
 }

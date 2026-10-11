@@ -42,16 +42,6 @@ export function PriceCard({ market, rent, tip }: { market: Market | null; rent: 
         )}
       </p>
       <PriceStrip market={market} rent={rent} />
-      <p className="mt-2 text-xs text-muted">
-        Each dot is a live listing:{" "}
-        {market.bySource.map((s, i) => (
-          <span key={s.source}>
-            {i > 0 && " · "}
-            {s.n} on {s.source} (median {money(s.median)})
-          </span>
-        ))}
-        {market.subletMedian ? ` · sublets nearby run about ${money(market.subletMedian)}` : ""}. The shaded band is the middle half.
-      </p>
       {tip && (
         <p className="mt-4 rounded-xl bg-accent-soft px-4 py-3 text-sm">
           <span className="font-medium">Tip: </span>
@@ -154,10 +144,6 @@ export function LocalsCard({ brief }: { brief: NeighborhoodBrief }) {
           ))}
         </div>
       )}
-      <p className="mt-4 text-xs text-muted">
-        Researched by a Nimble web agent · {brief.confidence || "unknown"} confidence ·{" "}
-        {new Date(brief.researchedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-      </p>
     </Card>
   );
 }
@@ -209,7 +195,6 @@ export function BuildingCard({ analysis }: { analysis: Analysis }) {
             ))}
           </ul>
         )}
-        <p className="mt-4 text-xs text-muted">Researched by a Nimble web agent · {r.confidence} confidence. Verify on HPD Online before signing.</p>
       </Card>
     );
   }
@@ -234,7 +219,7 @@ export function BuildingCard({ analysis }: { analysis: Analysis }) {
   return (
     <Card title="Building check">
       <p className="text-muted">
-        A research agent looks up HPD violations, 311 complaints, bedbug filings and tenant reviews for the exact building.
+        Looks up HPD violations, 311 complaints, bedbug filings and tenant reviews for the exact building.
         {b?.status === "failed" && <span className="text-bad"> The last attempt didn’t finish, try again.</span>}
       </p>
       <form
@@ -255,10 +240,9 @@ export function BuildingCard({ analysis }: { analysis: Analysis }) {
           disabled={address.trim().length < 6}
           className="rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-bg disabled:opacity-40"
         >
-          Check the building
+          Check the building (~3 min)
         </button>
       </form>
-      <p className="mt-2 text-xs text-muted">Takes about 3 minutes.</p>
     </Card>
   );
 }

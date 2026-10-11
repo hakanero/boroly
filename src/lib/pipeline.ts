@@ -90,7 +90,7 @@ ${raw}`,
       }),
     ]);
     emit({ type: "context", context: { location, nearby, hoodmaps } });
-    step("nearby", "done", `${nearby.length} spots nearby${hoodmaps ? " + Hoodmaps" : ""}`);
+    step("nearby", "done", `${nearby.length} spots nearby${hoodmaps ? " + vibes" : ""}`);
     return { location, nearby, hoodmaps, craigslist: await craigslist };
   })();
 
@@ -173,7 +173,7 @@ ${facts}`,
       url: s.source === "StreetEasy" ? `https://streeteasy.com/for-rent/${streeteasyArea}` : "https://www.craigslist.org/search/subarea/brk",
       kind: "Prices",
     })),
-    ...(ctx.hoodmaps ? [{ title: "Hoodmaps: New York City", url: "https://hoodmaps.com/new-york-city-neighborhood-map", kind: "Hoodmaps" }] : []),
+    ...(ctx.hoodmaps ? [{ title: "Hoodmaps: New York City", url: "https://hoodmaps.com/new-york-city-neighborhood-map", kind: "Vibes" }] : []),
   ];
   step("report", "done");
   emit({ type: "report", report, sources });

@@ -6,7 +6,7 @@ export const STEPS: { id: StepId; label: string }[] = [
   { id: "listing", label: "Reading the listing" },
   { id: "parse", label: "Pulling out the details" },
   { id: "nearby", label: "Mapping what’s nearby" },
-  { id: "agent", label: "Research agent asking locals" },
+  { id: "agent", label: "Asking locals" },
   { id: "streeteasy", label: "Crawling StreetEasy rents" },
   { id: "craigslist", label: "Scanning Craigslist within a mile" },
   { id: "report", label: "Writing your report" },
